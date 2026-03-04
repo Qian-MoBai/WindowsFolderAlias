@@ -35,7 +35,13 @@ func runCommand(command string, args ...string) string {
 
 // 设置文件夹别名
 func setFolderAlias(path, aliasName string) {
-	file, err := os.ReadFile(path)
+	var filePath string
+	if strings.LastIndex(path, `\`) == len(path)-1 {
+		filePath = path + fileName
+	} else {
+		filePath = path + `\` + fileName
+	}
+	file, err := os.ReadFile(filePath)
 	content := string(file)
 	if !strings.Contains(content, classLabel) {
 		if content == "" {

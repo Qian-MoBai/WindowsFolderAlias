@@ -16,7 +16,6 @@ func main() {
 		fmt.Println("请输入正确的文件夹路径")
 		return
 	}
-	var filePath = path + `\` + fileName
 	var aliasName string
 	fmt.Print("输入别名: ")
 	if scanner.Scan() {
@@ -25,7 +24,7 @@ func main() {
 		fmt.Println("请输入正确的别名")
 		return
 	}
-	setFolderAlias(filePath, aliasName)
+	setFolderAlias(path, aliasName)
 	fmt.Println("设置成功，重启资源管理器生效")
 	restartExplorer()
 }
