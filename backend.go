@@ -131,10 +131,10 @@ func setFolderAlias(path, aliasName string) error {
 	if err != nil {
 		return errors.New("写入失败，请检查是否拥有写入权限")
 	}
-	output := runCommand("attrib", "/S", path)
+	output := runCommand("attrib", "/S", filePath)
 	fields := strings.Fields(output)
 	if fields[1] != "SH" {
-		runCommand("attrib", "+S", "+H", path)
+		runCommand("attrib", "+S", "+H", filePath)
 	}
 	return nil
 }
