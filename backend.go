@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
+
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -33,6 +37,34 @@ func runCommand(command string, args ...string) string {
 	return string(output)
 }
 
+// 读取 UTF-16 LE 文件
+func readUTF16LEFile(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	// 创建 UTF-16 LE 解码器
+	reader := transform.NewReader(file, unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewDecoder())
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+// 写入 UTF-16 LE 文件
+func writeUTF16LEFile(filename, content string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := transform.NewWriter(file, unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewEncoder())
+	_, err = writer.Write([]byte(content))
+	return err
+}
+
 // 设置文件夹别名
 func setFolderAlias(path, aliasName string) {
 	var filePath string
@@ -41,8 +73,7 @@ func setFolderAlias(path, aliasName string) {
 	} else {
 		filePath = path + `\` + fileName
 	}
-	file, err := os.ReadFile(filePath)
-	content := string(file)
+	content, err := readUTF16LEFile(filePath)
 	if !strings.Contains(content, classLabel) {
 		if content == "" {
 			content = classLabel
@@ -65,7 +96,7 @@ func setFolderAlias(path, aliasName string) {
 	// 添加新的别名行
 	newLines = append(newLines, aliasNameLabel+aliasName)
 	content = strings.Join(newLines, "\n")
-	err = os.WriteFile(path, []byte(content), 0644)
+	err = writeUTF16LEFile(filePath, content)
 	if err != nil {
 		fmt.Println("写入失败，请检查是否拥有写入权限")
 		return
