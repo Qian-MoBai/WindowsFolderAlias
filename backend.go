@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -39,6 +41,23 @@ func runCommand(command string, args ...string) string {
 
 // 读取 UTF-16 LE 文件
 func readUTF16LEFile(filename string) (string, error) {
+	// 检查文件是否为空
+	fileInfo, err := os.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			create, err := os.Create(filename)
+			if err != nil {
+				return "", err
+			}
+			defer create.Close()
+			return "", nil
+		}
+		return "", err
+	}
+	if fileInfo.Size() == 0 {
+		// 文件为空
+		return "", nil
+	}
 	file, err := os.Open(filename)
 	if err != nil {
 		return "", err
@@ -55,7 +74,7 @@ func readUTF16LEFile(filename string) (string, error) {
 
 // 写入 UTF-16 LE 文件
 func writeUTF16LEFile(filename, content string) error {
-	file, err := os.Create(filename)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
@@ -68,14 +87,24 @@ func writeUTF16LEFile(filename, content string) error {
 }
 
 // 设置文件夹别名
-func setFolderAlias(path, aliasName string) {
+func setFolderAlias(path, aliasName string) error {
+	// 检查路径分隔符并拼接文件名
 	var filePath string
-	if strings.LastIndex(path, `\`) == len(path)-1 {
+	if strings.LastIndex(path, `\`) == len(path)-1 || strings.LastIndex(path, `/`) == len(path)-1 {
 		filePath = path + fileName
 	} else {
-		filePath = path + `\` + fileName
+		if strings.Index(path, `\`) != -1 {
+			filePath = path + `\` + fileName
+		} else if strings.Index(path, `/`) != -1 {
+			filePath = path + `/` + fileName
+		} else {
+			return errors.New("请输入正确的路径")
+		}
 	}
 	content, err := readUTF16LEFile(filePath)
+	if err != nil {
+		return errors.New("读取失败，请检查是否拥有读取权限")
+	}
 	if !strings.Contains(content, classLabel) {
 		if content == "" {
 			content = classLabel
@@ -100,14 +129,14 @@ func setFolderAlias(path, aliasName string) {
 	content = strings.Join(newLines, "\n")
 	err = writeUTF16LEFile(filePath, content)
 	if err != nil {
-		fmt.Println("写入失败，请检查是否拥有写入权限")
-		return
+		return errors.New("写入失败，请检查是否拥有写入权限")
 	}
 	output := runCommand("attrib", "/S", path)
 	fields := strings.Fields(output)
 	if fields[1] != "SH" {
 		runCommand("attrib", "+S", "+H", path)
 	}
+	return nil
 }
 
 // 重启资源管理器
@@ -116,7 +145,7 @@ func restartExplorer() {
 	cmd := exec.Command("explorer.exe")
 	err := cmd.Start()
 	if err != nil {
-		fmt.Println("出现错误: ", err)
+		log.Println("出现错误: ", err)
 		return
 	}
 }
