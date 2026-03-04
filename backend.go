@@ -60,8 +60,10 @@ func writeUTF16LEFile(filename, content string) error {
 		return err
 	}
 	defer file.Close()
+	// 创建 UTF-16 LE 编码器
 	writer := transform.NewWriter(file, unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewEncoder())
 	_, err = writer.Write([]byte(content))
+	defer writer.Close()
 	return err
 }
 
