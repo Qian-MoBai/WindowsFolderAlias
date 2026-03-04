@@ -28,10 +28,21 @@ func runCommand(command string, args ...string) string {
 	cmd := exec.Command(command, args...)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Println("请检查是否安装Windows SDK")
+		fmt.Println("出现错误: ", err)
 		return ""
 	}
 	return string(output)
+}
+
+// 重启资源管理器
+func restartExplorer() {
+	runCommand("taskkill", "/F", "/IM", "explorer.exe")
+	cmd := exec.Command("explorer.exe")
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("出现错误: ", err)
+		return
+	}
 }
 func main() {
 	var path string
@@ -43,7 +54,7 @@ func main() {
 		fmt.Println("请输入正确的文件夹路径")
 		return
 	}
-	var filePath = path + "/" + fileName
+	var filePath = path + `\` + fileName
 	file, err := os.ReadFile(filePath)
 	content := string(file)
 	if !strings.Contains(content, classLabel) {
@@ -87,4 +98,5 @@ func main() {
 		runCommand("attrib", "+S", "+H", filePath)
 	}
 	fmt.Println("设置成功，重启资源管理器生效")
+	restartExplorer()
 }
