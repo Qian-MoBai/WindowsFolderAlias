@@ -2,12 +2,12 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -28,12 +28,14 @@ func isDir(path string) bool {
 	return fileInfo.IsDir()
 }
 
-// 运行命令
+// 运行命令 (隐藏窗口)
 func runCommand(command string, args ...string) string {
 	cmd := exec.Command(command, args...)
+	// 隐藏 cmd窗口
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Println("出现错误: ", err)
+		log.Println("出现错误：", err)
 		return ""
 	}
 	return string(output)
@@ -74,7 +76,9 @@ func readUTF16LEFile(filename string) (string, error) {
 
 // 写入 UTF-16 LE 文件
 func writeUTF16LEFile(filename, content string) error {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	// 先删除旧文件，避免追加模式导致的问题
+	os.Remove(filename)
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -82,70 +86,80 @@ func writeUTF16LEFile(filename, content string) error {
 	// 创建 UTF-16 LE 编码器
 	writer := transform.NewWriter(file, unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewEncoder())
 	_, err = writer.Write([]byte(content))
-	defer writer.Close()
-	return err
+	if err != nil {
+		return err
+	}
+	// 确保所有数据都写入
+	return writer.Close()
 }
 
 // 设置文件夹别名
 func setFolderAlias(path, aliasName string) error {
 	// 检查路径分隔符并拼接文件名
 	var filePath string
-	if strings.LastIndex(path, `\`) == len(path)-1 || strings.LastIndex(path, `/`) == len(path)-1 {
+	if strings.HasSuffix(path, `\`) || strings.HasSuffix(path, `/`) {
 		filePath = path + fileName
 	} else {
-		if strings.Index(path, `\`) != -1 {
+		if strings.Contains(path, `\`) {
 			filePath = path + `\` + fileName
-		} else if strings.Index(path, `/`) != -1 {
+		} else if strings.Contains(path, "/") {
 			filePath = path + `/` + fileName
 		} else {
 			return errors.New("请输入正确的路径")
 		}
 	}
+	// 读取现有内容
 	content, err := readUTF16LEFile(filePath)
 	if err != nil {
 		return errors.New("读取失败，请检查是否拥有读取权限")
 	}
-	if !strings.Contains(content, classLabel) {
-		if content == "" {
-			content = classLabel
-		} else {
-			content += "\n" + classLabel
+	// 构建新的文件内容
+	var lines []string
+	if content != "" {
+		lines = strings.Split(content, "\n")
+	}
+	// 检查是否需要添加 classLabel
+	hasClassLabel := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) == classLabel {
+			hasClassLabel = true
+			break
 		}
 	}
-	if !strings.Contains(content, aliasNameLabel) {
-		content += "\n" + aliasNameLabel
+	if !hasClassLabel {
+		lines = append(lines, classLabel)
 	}
-	// 分割内容为多行
-	lines := strings.Split(content, "\n")
+	// 过滤掉旧的 LocalizedResourceName 行并添加新的
 	var newLines []string
-	// 过滤掉旧的 LocalizedResourceName 行
 	for _, line := range lines {
-		if !strings.HasPrefix(strings.TrimSpace(line), aliasNameLabel) {
-			newLines = append(newLines, line)
+		trimmedLine := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmedLine, aliasNameLabel) && trimmedLine != "" {
+			newLines = append(newLines, trimmedLine)
 		}
 	}
 	// 添加新的别名行
 	newLines = append(newLines, aliasNameLabel+aliasName)
 	content = strings.Join(newLines, "\n")
+	// 写入文件
 	err = writeUTF16LEFile(filePath, content)
 	if err != nil {
 		return errors.New("写入失败，请检查是否拥有写入权限")
 	}
-	output := runCommand("attrib", "/S", filePath)
-	fields := strings.Fields(output)
-	if fields[1] != "SH" {
-		runCommand("attrib", "+S", "+H", filePath)
-	}
+	// 设置系统隐藏属性 (不检查输出)
+	runCommand("attrib", "+S", "+H", filePath)
 	return nil
 }
 
 // 重启资源管理器
 func restartExplorer() {
+	// 静默终止资源管理器 (不检查输出)
 	runCommand("taskkill", "/F", "/IM", "explorer.exe")
-	cmd := exec.Command("explorer.exe")
-	err := cmd.Start()
+	// 启动新的资源管理器实例
+	expCmd := exec.Command("explorer.exe")
+	expCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	err := expCmd.Start()
 	if err != nil {
-		log.Println("出现错误: ", err)
+		log.Println("出现错误:", err)
 		return
 	}
 }
