@@ -1,0 +1,5 @@
+[Details]
+Icon = "icon.png"
+Name = "Windows文件夹别名"
+ID = "com.mobai.windows.folder.alias"
+Version = "1.1.0"
