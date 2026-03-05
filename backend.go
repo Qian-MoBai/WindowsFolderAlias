@@ -118,24 +118,28 @@ func setFolderAlias(path, aliasName string) error {
 	if content != "" {
 		lines = strings.Split(content, "\n")
 	}
-	// 检查是否需要添加 classLabel
-	hasClassLabel := false
+	// 过滤掉旧的 LocalizedResourceName 行
+	var newLines []string
 	for _, line := range lines {
-		if strings.TrimSpace(line) == classLabel {
+		trimmedLine := strings.TrimSpace(line)
+		// 去除 BOM 字符 (U+FEFF)
+		trimmedLine = strings.TrimPrefix(trimmedLine, "\ufeff")
+		// 保留非空行且不包含 LocalizedResourceName 的行
+		if trimmedLine != "" && !strings.HasPrefix(trimmedLine, aliasNameLabel) {
+			newLines = append(newLines, trimmedLine)
+		}
+	}
+	// 确保 [.ShellClassInfo] 标签存在且只存在一次
+	hasClassLabel := false
+	for _, line := range newLines {
+		if line == classLabel {
 			hasClassLabel = true
 			break
 		}
 	}
 	if !hasClassLabel {
-		lines = append(lines, classLabel)
-	}
-	// 过滤掉旧的 LocalizedResourceName 行并添加新的
-	var newLines []string
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmedLine, aliasNameLabel) && trimmedLine != "" {
-			newLines = append(newLines, trimmedLine)
-		}
+		// 在开头添加标签
+		newLines = append([]string{classLabel}, newLines...)
 	}
 	// 添加新的别名行
 	newLines = append(newLines, aliasNameLabel+aliasName)
