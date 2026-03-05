@@ -19,8 +19,13 @@ func folderPathContainer(window fyne.Window) (fyne.CanvasObject, *widget.Entry) 
 	folderInput := widget.NewEntry()
 	folderInput.SetPlaceHolder("请输入文件夹路径")
 	folderInput.Validator = func(s string) error {
+		// 校验空
 		if strings.TrimSpace(s) == "" {
 			return errors.New("请选择文件夹路径")
+		}
+		// 校验两种斜杠混合使用
+		if strings.HasSuffix(s, `\`) && strings.HasSuffix(s, `/`) {
+			return errors.New("两种斜杠混合")
 		}
 		return nil
 	}
@@ -44,6 +49,10 @@ func folderAliasContainer() (*fyne.Container, *widget.Entry) {
 	aliasInput.Validator = func(s string) error {
 		if strings.TrimSpace(s) == "" {
 			return errors.New("请输入别名")
+		}
+		// 检查是否包含 Windows 文件名非法字符：\ / : * ? " < > |
+		if strings.ContainsAny(s, "\\/:*?\"<>|") {
+			return errors.New("别名不能包含以下字符：\\ / : * ? \" < > |")
 		}
 		return nil
 	}
