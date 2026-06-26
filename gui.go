@@ -17,15 +17,12 @@ import (
 func folderPathContainer(window fyne.Window) (fyne.CanvasObject, *widget.Entry) {
 	folderLabel := widget.NewLabel("需要配置别名的文件夹路径：")
 	folderInput := widget.NewEntry()
-	folderInput.SetPlaceHolder("请输入文件夹路径")
+	folderInput.SetPlaceHolder("请选择文件夹路径")
+	folderInput.Disable()
 	folderInput.Validator = func(s string) error {
 		// 校验空
 		if strings.TrimSpace(s) == "" {
 			return errors.New("请选择文件夹路径")
-		}
-		// 校验两种斜杠混合使用
-		if strings.HasSuffix(s, `\`) && strings.HasSuffix(s, `/`) {
-			return errors.New("两种斜杠混合")
 		}
 		return nil
 	}

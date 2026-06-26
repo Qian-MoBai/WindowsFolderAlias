@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -18,6 +19,14 @@ const (
 	classLabel     = "[.ShellClassInfo]"
 	aliasNameLabel = "LocalizedResourceName="
 )
+
+func init() {
+	file, err := os.OpenFile("run.log", os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetOutput(file)
+}
 
 // 判断是否是文件夹
 func isDir(path string) bool {
@@ -95,19 +104,8 @@ func writeUTF16LEFile(filename, content string) error {
 
 // 设置文件夹别名
 func setFolderAlias(path, aliasName string) error {
-	// 检查路径分隔符并拼接文件名
-	var filePath string
-	if strings.HasSuffix(path, `\`) || strings.HasSuffix(path, `/`) {
-		filePath = path + fileName
-	} else {
-		if strings.Contains(path, `\`) {
-			filePath = path + `\` + fileName
-		} else if strings.Contains(path, "/") {
-			filePath = path + `/` + fileName
-		} else {
-			return errors.New("请输入正确的路径")
-		}
-	}
+	// 拼接文件名
+	filePath := filepath.Join(path, fileName)
 	// 读取现有内容
 	content, err := readUTF16LEFile(filePath)
 	if err != nil {
